@@ -5,29 +5,31 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 const {signupValidator, loginValidator} = require('../validators');
 
+require('dotenv').config();
+const SECRET = process.env.SECRET;
+
 const router = express.Router();
 
 // create new user
 router.post('/signup', (req, res) => {
   const {errors, isValid} = signupValidator(req.body);
 
-  const {fName, lName, email, password} = req.body;
+  const {fName, lName, email, password, username} = req.body;
 
   if (!isValid) {
     return res.status(400).json(errors);
   }
 
-  User.findOne( {email})
+  User.findOne({$or: [{email}, {username}]})
       .then((user) => {
         if (user) {
           if (user.email === email) {
             return res.status(400).json({email: 'Error: 10'});
+          } else {
+            return res.status(400).json({username: 'Error: 10'});
           }
-          // else {
-          //   return res.status(400).json({username: 'Error: 10'});
-          // }
         } else {
-          const newUser = new User({fName, lName, email, password});
+          const newUser = new User({fName, lName, email, password, username});
           bcrypt.genSalt(16, (err, salt) => {
             bcrypt.hash(newUser.password, salt, (err, hash) => {
               if (err) throw err;
@@ -40,7 +42,7 @@ router.post('/signup', (req, res) => {
       });
 });
 
-// login user (we use post so that login credentials aren't sent through URL like for a GET)
+// login (use POST so login credentials aren't sent through URL E.G GET)
 router.post('/login', (req, res) => {
   const {errors, isValid} = loginValidator(req.body);
 
@@ -48,18 +50,21 @@ router.post('/login', (req, res) => {
     return res.status(400).json(errors);
   }
 
-  const {email, password} = req.body;
+  const {input, password} = req.body;
 
-  User.findOne({email}).then((user) => {
+  const username = input;
+  const email = input;
+
+  User.findOne({$or: [{email}, {username}]}).then((user) => {
     if (!user) {
-      return res.status(404).json({email: 'Email Incorrect'});
+      return res.status(404).json({input: 'Login Incorrect'});
     }
 
     bcrypt.compare(password, user.password).then((isMatch) => {
       if (isMatch) {
         const payload = {
           id: user.id,
-          email: user.email,
+          username: user.username,
         };
         jwt.sign(payload, SECRET, {expiresIn: 3600}, (err, token) => {
           if (err) {

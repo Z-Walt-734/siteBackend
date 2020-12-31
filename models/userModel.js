@@ -24,6 +24,11 @@ const userModel = new Schema(
         required: true,
       },
 
+      username: {
+        type: String,
+        required: true,
+      },
+
       posts: [
         {
           type: mongoose.Schema.Types.ObjectId,
